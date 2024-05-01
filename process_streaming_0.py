@@ -58,33 +58,40 @@ def stream_row(input_file_name, address_tuple):
     """Read from input file and stream data."""
     logging.info(f"Starting to stream data from {input_file_name} to {address_tuple}.")
 
-    # Create a file object for input (r = read access)
-    with open(input_file_name, "r") as input_file:
-        logging.info(f"Opened for reading: {input_file_name}.")
+    try:
+        # Open the input file for reading
+        with open(input_file_name, "r") as input_file:
+            logging.info(f"Opened for reading: {input_file_name}.")
 
-        # Create a CSV reader object
-        reader = csv.reader(input_file, delimiter=",")
+            # Create a CSV reader object
+            reader = csv.reader(input_file, delimiter=",")
+
+            # Skip the header row
+            header = next(reader)
+            logging.info(f"Skipped header row: {header}")
+
+            # Read all rows into a list
+            rows = list(reader)
+            logging.debug(f"Number of rows read: {len(rows)}")
+
+            # Reverse the list of rows to read oldest data first
+            rows.reverse()
+
+            # Create a socket object for UDP communication
+            ADDRESS_FAMILY = socket.AF_INET
+            SOCKET_TYPE = socket.SOCK_DGRAM
+            sock_object = socket.socket(ADDRESS_FAMILY, SOCKET_TYPE)
+
+            # Iterate over the reversed list of rows and send data
+            for row in rows:
+                MESSAGE = prepare_message_from_row(row)
+                sock_object.sendto(MESSAGE, address_tuple)
+                logging.info(f"Sent: {MESSAGE} on port {PORT}. Hit CTRL-c to stop.")
+                time.sleep(3)
         
-        header = next(reader)  # Skip header row
-        logging.info(f"Skipped header row: {header}")
-
-        # use socket enumerated types to configure our socket object
-        # Set our address family to (IPV4) for 'internet'
-        # Set our socket type to UDP (datagram)
-        ADDRESS_FAMILY = socket.AF_INET 
-        SOCKET_TYPE = socket.SOCK_DGRAM 
-
-        # Call the socket constructor, socket.socket()
-        # A constructor is a special method with the same name as the class
-        # Use the constructor to make a socket object
-        # and assign it to a variable named `sock_object`
-        sock_object = socket.socket(ADDRESS_FAMILY, SOCKET_TYPE)
-        
-        for row in reader:
-            MESSAGE = prepare_message_from_row(row)
-            sock_object.sendto(MESSAGE, address_tuple)
-            logging.info(f"Sent: {MESSAGE} on port {PORT}. Hit CTRL-c to stop.")
-            time.sleep(3) # wait 3 seconds between messages
+        logging.info("Streaming complete!")
+    except Exception as e:
+        logging.error(f"An error occurred: {e}")
 
 # ---------------------------------------------------------------------------
 # If this is the script we are running, then call some functions and execute code!
